@@ -38,7 +38,9 @@
   <div class="profile col-md-4">
     <h3>About <?php print $elements['#account']->name?></h3>
     <div class="inside user-profile">
-      <?php print render($user_profile['field_avatar']); ?>
+      <?php if(array_key_exists('#field_name',$user_profile['field_avatar'])):
+        print render($user_profile['field_avatar']);
+      endif;?>
       <?php if($full_name): ?>
         <h3 class="full-name"><?php print $full_name?></h3>
       <?php endif; ?>
