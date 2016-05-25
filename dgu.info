@@ -1,5 +1,5 @@
-name = data_gov_uk
-description = data.gov.uk website
+name = data_gov_si
+description = data.gov.si spletna stran
 core = 7.x
 
 dependencies[] = block
