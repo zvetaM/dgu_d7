@@ -1,0 +1,148 @@
+<?php
+
+/**
+ * @file
+ * Allows user account and profile attributes to be automatically populated
+ * using tokens. Provides basic tokens for attributes returned by a Varnostna Shema
+ * server.
+ */
+
+/**
+ * Implements hook_menu().
+ */
+function cas_varnostna_shema_menu() {
+  $items['admin/config/people/cas/attributes/varnostna_shema'] = array(
+    'title' => 'Varnostna Shema Tokens',
+    'description' => 'Get a list of all available Varnostna Shema Tokens',
+    'page callback' => 'cas_varnostna_shema_list',
+    'access arguments' => array('administer cas'),
+    'file' => 'cas_varnostna_shema.admin.inc',
+    'type' => MENU_LOCAL_TASK,
+    'weight' => -8,
+  );
+  return $items;
+}
+
+/**
+ * Implements hook_cas_user_alter().
+ *
+ * This hook maps certificate ID returned by CAS to taxID, because user can have
+ * multiple certificates.
+ */
+function cas_varnostna_shema_cas_user_alter(&$cas_user) {
+  $attributes = cas_varnostna_shema_attributes($cas_user['name'], TRUE);
+  $cas_user['name'] = $attributes['taxid'];
+}
+
+
+/**
+ * Implements hook_cas_attributes_roles_modify().
+ *
+ * This hook lets cas_attributes use roles specified in this module.
+ */
+function cas_varnostna_shema_cas_attributes_roles_modify(&$user_attributes) {
+  $user_attributes = array_merge($user_attributes, cas_varnostna_shema_attributes(phpCAS::getUser()));
+}
+
+/**
+ * Administrative settings form.
+ */
+function cas_varnostna_shema_form_cas_attributes_admin_settings_alter(&$form, &$form_state, $form_id) {
+
+  $form['cas_attributes_varnostna_shema'] = array(
+    '#type' => 'fieldset',
+    '#title' => 'Varnostna Shema',
+    '#weight' => -8,
+  );
+
+  $form['cas_attributes_varnostna_shema']['cas_attributes_varnostna_shema_cert_location'] = array(
+    '#type' => 'textfield',
+    '#title' => t('Certificate location'),
+    '#default_value' => variable_get('cas_attributes_varnostna_shema_cert_location', NULL),
+  );
+}
+
+/**
+ * Returns an array containing Varnostna Shema attributes for the specified user.
+ *
+ * @param $name
+ * @param $name_is_cert_id
+ */
+function cas_varnostna_shema_attributes($name, $name_is_cert_id=FALSE) {
+  $attributes = &drupal_static(__FUNCTION__, array());
+
+  if ($name_is_cert_id || !isset($attributes[$name])) {
+    $attributes[$name] = _cas_varnostna_shema_attributes($name, $name_is_cert_id);
+  }
+  return $attributes[$name];
+}
+
+/**
+ * Look up the user attributes for the specified user.
+ */
+function _cas_varnostna_shema_attributes($name, $name_is_cert_id) {
+  $id_type = $name_is_cert_id ? 'VS_CERT_ID' : 'TAX_NUMBER';
+
+  $ch = curl_init('https://vs-test.gov.si/VS.webservices/services/userInfo?wsdl');
+  curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, '0');
+  curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, '0');
+  // If CURLOPT_SSLCERT also contains key then CURLOPT_SSLKEY is not needed.
+  curl_setopt($ch, CURLOPT_SSLCERT, variable_get('cas_attributes_varnostna_shema_cert_location', NULL));
+
+  curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
+
+  curl_setopt($ch, CURLOPT_POST, 1);
+  $request = '<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/"
+     xmlns:user="http://userinfo.vs.mju.si/">
+     <soapenv:Header />
+     <soapenv:Body>
+        <user:getUserInfo>
+           <userIdentifier>
+              <idName>'.$id_type.'</idName>
+              <idValue>'.$name.'</idValue>
+           </userIdentifier>
+           <serviceURL>http://pops-test.xlab.si/</serviceURL>
+           <extraParameters>
+              <idName>VS_API_LEVEL</idName>
+              <idValue>1</idValue>
+           </extraParameters>
+        </user:getUserInfo>
+     </soapenv:Body>
+  </soapenv:Envelope>';
+  curl_setopt($ch, CURLOPT_POSTFIELDS, $request);
+
+  $response = curl_exec($ch);
+  $status = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+  if ($status != 200) {
+      return array();
+    //   return array(
+    //     'firstname' => 'firstname',
+    //     'lastname' => 'lastname',
+    //     'email' => 'email',
+    //     'taxid' => 'taxID'
+    //   );
+  }
+
+  // SimpleXMLElement can't handle namespaces
+  $response = preg_replace("/.*(<userInfoPackage>)(.*)(<\/userInfoPackage>).*/", "$1$2$3", $response);
+
+  $xml = new SimpleXMLElement($response);
+
+  $firstname = (string)$xml->xpath('/userInfoPackage/user/firstname')[0];
+  $lastname = (string)$xml->xpath('/userInfoPackage/user/lastname')[0];
+  $email = (string)$xml->xpath('/userInfoPackage/user/email')[0];
+  $taxID = (string)$xml->xpath('/userInfoPackage/user/taxID')[0];
+
+  $roles = array_map(function($el) {
+    return (string)$el;
+  }, $xml->xpath('/userInfoPackage/role/roleName'));
+
+
+  return array(
+    'firstname' => $firstname,
+    'lastname' => $lastname,
+    'email' => $email,
+    'taxid' => $taxID,
+    'roles' => $roles
+  );
+}

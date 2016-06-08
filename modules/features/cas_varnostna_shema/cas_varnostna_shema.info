@@ -1,0 +1,15 @@
+name = CAS Varnostna Shema Tokens
+description = "Provides tokens for Varnostna Shema attributes for CAS users."
+core = 7.x
+package = Central Authentication Service
+
+dependencies[] = cas
+dependencies[] = cas_attributes
+
+configure = admin/config/people/cas/attributes
+
+; Information added by  packaging script on 2013-11-13
+version = "7.x-1.0"
+core = "7.x"
+project = "cas_varnostna_shema"
+datestamp = "1384309134"
