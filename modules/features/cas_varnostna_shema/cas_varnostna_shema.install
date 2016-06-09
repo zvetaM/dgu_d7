@@ -1,0 +1,43 @@
+<?php
+
+/**
+ * @file
+ * Allows user account and profile attributes to be automatically populated
+ * using tokens. Provides basic tokens for attributes returned by a Varnostna Shema
+ * server.
+ */
+
+
+/**
+* Implementation of hook_enable().
+*/
+function cas_varnostna_shema_enable() {
+    // cas
+    variable_set("cas_hide_email", 1);
+    variable_set("cas_hide_password", 1);
+    variable_set("cas_login_form", "2");
+    variable_set("cas_server", "vs-test.gov.si");
+    variable_set("cas_uri", "/VS.web/");
+    variable_set("cas_user_register", 1);
+    variable_set("cas_version", "2.0");
+
+    // cas attributes
+    variable_set("cas_attributes_overwrite", "1");
+    variable_set("cas_attributes_sync_every_login", "1");
+    variable_set("cas_attributes_roles_mapping", "roles");
+    variable_set("cas_attributes_relations", array(
+      "name" => "[cas:varnostna_shema:taxid]",
+      "mail" => "[cas:varnostna_shema:email]",
+      "field_first_name" => "[cas:varnostna_shema:firstname]",
+      "field_surname" => "[cas:varnostna_shema:lastname]"));
+    variable_set("cas_attributes_roles_manage", array(
+        array_search("Glavni urednik", user_roles()),
+        array_search("Področni urednik", user_roles()),
+        array_search("Vsebinski urednik", user_roles()),
+        array_search("Tehnični urednik", user_roles()),
+        array_search("Sistemski administrator", user_roles())
+    ));
+
+    // cas varnostna shema
+    variable_set("cas_attributes_varnostna_shema_cert_location", "/var/www/drupal/dgu/CertKey.pem");
+}
