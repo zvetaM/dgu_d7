@@ -343,3 +343,8 @@ libraries[d3][download][type] = "get"
 libraries[d3][download][url] = "https://github.com/mbostock/d3/zipball/master"
 libraries[d3][directory_name] = "d3"
 libraries[d3][destination] = "libraries"
+
+libraries[CAS][download][type] = "get"
+libraries[CAS][download][url] = "https://developer.jasig.org/cas-clients/php/1.3.4/CAS-1.3.4.tgz"
+libraries[CAS][directory_name] = "CAS"
+libraries[CAS][destination] = "libraries"
